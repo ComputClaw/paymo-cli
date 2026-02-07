@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	DefaultConfigDir  = ".paymo"
-	CredentialsFile   = "credentials.json"
+	DefaultConfigDir  = ".config/paymo-cli"
+	ConfigFile        = "config.json"
 	DefaultAPIBaseURL = "https://app.paymoapp.com/api"
 )
 
@@ -75,13 +75,13 @@ func EnsureConfigDir() (string, error) {
 	return dir, nil
 }
 
-// GetCredentialsPath returns the path to the credentials file
+// GetCredentialsPath returns the path to the config file
 func GetCredentialsPath() (string, error) {
 	dir, err := GetConfigDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, CredentialsFile), nil
+	return filepath.Join(dir, ConfigFile), nil
 }
 
 // LoadCredentials loads credentials from the config directory
@@ -114,7 +114,7 @@ func SaveCredentials(creds *Credentials) error {
 		return err
 	}
 	
-	path := filepath.Join(dir, CredentialsFile)
+	path := filepath.Join(dir, ConfigFile)
 	
 	data, err := json.MarshalIndent(creds, "", "  ")
 	if err != nil {

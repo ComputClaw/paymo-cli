@@ -89,7 +89,7 @@ Interactive login:
 		}
 		
 		fmt.Printf("\n🎉 Successfully authenticated as %s (%s)\n", user.Name, user.Email)
-		fmt.Printf("   Credentials saved to ~/.paymo/credentials.json\n")
+		fmt.Printf("   Credentials saved to ~/.config/paymo-cli/config.json\n")
 		
 		return nil
 	},
