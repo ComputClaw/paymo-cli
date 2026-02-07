@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -10,7 +11,7 @@ import (
 
 var (
 	cfgFile string
-	version = "dev"
+	version = "0.1.0"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -27,6 +28,30 @@ Built with ❤️  by ComputClaw`,
 	Version: version,
 }
 
+// helpCmd provides help for commands (standard CLI convention)
+var helpCmd = &cobra.Command{
+	Use:   "help [command]",
+	Short: "Help about any command",
+	Long: `Help provides help for any command in the application.
+Simply type paymo help [path to command] for full details.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) == 0 {
+			rootCmd.Help()
+			return
+		}
+
+		// Find the command
+		targetCmd, _, err := rootCmd.Find(args)
+		if err != nil || targetCmd == nil {
+			fmt.Printf("Unknown command: %s\n", strings.Join(args, " "))
+			fmt.Println("\nRun 'paymo --help' for usage.")
+			return
+		}
+
+		targetCmd.Help()
+	},
+}
+
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() error {
@@ -37,13 +62,20 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	// Global flags
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.paymo.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ~/.config/paymo-cli/config.json)")
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "verbose output")
 	rootCmd.PersistentFlags().StringP("format", "f", "table", "output format: table, json, csv")
 	
 	// Bind flags to viper
 	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 	viper.BindPFlag("format", rootCmd.PersistentFlags().Lookup("format"))
+
+	// Disable Cobra's default help command (we use our own)
+	rootCmd.SetHelpCommand(helpCmd)
+
+	// Set up version template
+	rootCmd.SetVersionTemplate(`{{.Name}} version {{.Version}}
+`)
 }
 
 // initConfig reads in config file and ENV variables if set.
