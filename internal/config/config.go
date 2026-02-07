@@ -7,47 +7,48 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 const (
 	DefaultConfigDir  = ".config/paymo-cli"
-	ConfigFile        = "config.json"
+	ConfigFile        = "config.yaml"
+	CredentialsFile   = "credentials"
 	DefaultAPIBaseURL = "https://app.paymoapp.com/api"
 )
 
-// Config holds the application configuration
+// Config holds application preferences (not secrets)
 type Config struct {
-	API      APIConfig      `mapstructure:"api"`
-	Defaults DefaultsConfig `mapstructure:"defaults"`
-	Output   OutputConfig   `mapstructure:"output"`
+	API      APIConfig      `yaml:"api"`
+	Defaults DefaultsConfig `yaml:"defaults"`
+	Output   OutputConfig   `yaml:"output"`
 }
 
 // APIConfig holds API-related configuration
 type APIConfig struct {
-	BaseURL string `mapstructure:"base_url"`
-	Timeout string `mapstructure:"timeout"`
+	BaseURL string `yaml:"base_url"`
+	Timeout string `yaml:"timeout"`
 }
 
 // DefaultsConfig holds default values
 type DefaultsConfig struct {
-	Format    string `mapstructure:"format"`
-	ProjectID int    `mapstructure:"project_id"`
-	Timezone  string `mapstructure:"timezone"`
+	Format    string `yaml:"format"`
+	ProjectID int    `yaml:"project_id"`
+	Timezone  string `yaml:"timezone"`
 }
 
 // OutputConfig holds output formatting options
 type OutputConfig struct {
-	DateFormat  string `mapstructure:"date_format"`
-	TimeFormat  string `mapstructure:"time_format"`
-	TableStyle  string `mapstructure:"table_style"`
+	DateFormat string `yaml:"date_format"`
+	TimeFormat string `yaml:"time_format"`
+	TableStyle string `yaml:"table_style"`
 }
 
-// Credentials holds authentication credentials
+// Credentials holds authentication credentials (secrets)
 type Credentials struct {
 	AuthType string `json:"auth_type"` // "api_key" or "basic"
 	APIKey   string `json:"api_key,omitempty"`
 	Email    string `json:"email,omitempty"`
-	Password string `json:"password,omitempty"` // Stored temporarily for session, not recommended
 	UserID   int    `json:"user_id,omitempty"`
 	UserName string `json:"user_name,omitempty"`
 }
@@ -67,21 +68,23 @@ func EnsureConfigDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", fmt.Errorf("creating config dir: %w", err)
 	}
-	
+
 	return dir, nil
 }
 
-// GetCredentialsPath returns the path to the config file
+// --- Credentials (secrets) ---
+
+// GetCredentialsPath returns the path to the credentials file
 func GetCredentialsPath() (string, error) {
 	dir, err := GetConfigDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, ConfigFile), nil
+	return filepath.Join(dir, CredentialsFile), nil
 }
 
 // LoadCredentials loads credentials from the config directory
@@ -90,7 +93,7 @@ func LoadCredentials() (*Credentials, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -98,12 +101,12 @@ func LoadCredentials() (*Credentials, error) {
 		}
 		return nil, fmt.Errorf("reading credentials: %w", err)
 	}
-	
+
 	var creds Credentials
 	if err := json.Unmarshal(data, &creds); err != nil {
 		return nil, fmt.Errorf("parsing credentials: %w", err)
 	}
-	
+
 	return &creds, nil
 }
 
@@ -113,19 +116,19 @@ func SaveCredentials(creds *Credentials) error {
 	if err != nil {
 		return err
 	}
-	
-	path := filepath.Join(dir, ConfigFile)
-	
+
+	path := filepath.Join(dir, CredentialsFile)
+
 	data, err := json.MarshalIndent(creds, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshaling credentials: %w", err)
 	}
-	
+
 	// Write with restricted permissions (owner only)
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		return fmt.Errorf("writing credentials: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -135,11 +138,11 @@ func DeleteCredentials() error {
 	if err != nil {
 		return err
 	}
-	
+
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("removing credentials: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -149,10 +152,88 @@ func HasCredentials() bool {
 	if err != nil {
 		return false
 	}
-	
+
 	_, err = os.Stat(path)
 	return err == nil
 }
+
+// CheckCredentialsPermissions warns if credentials file has loose permissions
+func CheckCredentialsPermissions() error {
+	path, err := GetCredentialsPath()
+	if err != nil {
+		return nil
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil // File doesn't exist
+	}
+
+	perm := info.Mode().Perm()
+	if perm&0077 != 0 {
+		return fmt.Errorf("credentials file %s has insecure permissions %o (should be 0600)", path, perm)
+	}
+
+	return nil
+}
+
+// --- Config (preferences) ---
+
+// GetConfigPath returns the path to the config file
+func GetConfigPath() (string, error) {
+	dir, err := GetConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, ConfigFile), nil
+}
+
+// LoadConfig loads the config file
+func LoadConfig() (*Config, error) {
+	path, err := GetConfigPath()
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return &Config{}, nil // Return defaults
+		}
+		return nil, fmt.Errorf("reading config: %w", err)
+	}
+
+	var cfg Config
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("parsing config: %w", err)
+	}
+
+	return &cfg, nil
+}
+
+// SaveConfig saves the config file
+func SaveConfig(cfg *Config) error {
+	dir, err := EnsureConfigDir()
+	if err != nil {
+		return err
+	}
+
+	path := filepath.Join(dir, ConfigFile)
+
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("marshaling config: %w", err)
+	}
+
+	// Config can be more permissive than credentials
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return fmt.Errorf("writing config: %w", err)
+	}
+
+	return nil
+}
+
+// --- Helpers ---
 
 // GetAPIBaseURL returns the API base URL from config or default
 func GetAPIBaseURL() string {
@@ -171,4 +252,9 @@ func GetOutputFormat() string {
 		return format
 	}
 	return "table"
+}
+
+// GetAPIKeyFromEnv returns API key from environment variable
+func GetAPIKeyFromEnv() string {
+	return os.Getenv("PAYMO_API_KEY")
 }

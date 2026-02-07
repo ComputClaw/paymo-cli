@@ -391,10 +391,25 @@ paymo-cli stores configuration in ~/.config/paymo-cli/
 
 FILES
 -----
-  config.json     Credentials and user settings
+  config.yaml     Preferences and settings (0644 permissions)
+  credentials     API key and auth info (0600 permissions)
 
-CONFIG FILE STRUCTURE
----------------------
+CONFIG FILE (~/.config/paymo-cli/config.yaml)
+----------------------------------------------
+api:
+  base_url: "https://app.paymoapp.com/api"
+  timeout: "30s"
+
+defaults:
+  format: "table"
+  timezone: "UTC"
+
+output:
+  date_format: "2006-01-02"
+  time_format: "15:04"
+
+CREDENTIALS FILE (~/.config/paymo-cli/credentials)
+---------------------------------------------------
 {
   "auth_type": "api_key",
   "api_key": "your-api-key",
@@ -404,9 +419,7 @@ CONFIG FILE STRUCTURE
 
 ENVIRONMENT VARIABLES
 ---------------------
-All config can be overridden with environment variables:
-
-  PAYMO_API_KEY       API key for authentication
+  PAYMO_API_KEY       API key (overrides credentials file)
   PAYMO_FORMAT        Default output format (table/json/csv)
   PAYMO_VERBOSE       Enable verbose output (true/false)
 
@@ -414,20 +427,21 @@ PRECEDENCE
 ----------
 1. Command-line flags (highest)
 2. Environment variables
-3. Config file
+3. Config/credentials files
 4. Built-in defaults (lowest)
 
 SECURITY
 --------
-- Config file is created with 0600 permissions (owner read/write only)
-- API keys are stored in plain text - protect your config directory
-- Use environment variables in CI/CD pipelines
+- Credentials file: 0600 permissions (owner read/write only)
+- Config file: 0644 permissions (world readable, owner writable)
+- Warning shown if credentials have insecure permissions
+- Use PAYMO_API_KEY env var in CI/CD pipelines
 
 CUSTOM CONFIG FILE
 ------------------
 Use --config flag to specify a custom config file:
 
-  paymo --config /path/to/config.json projects list
+  paymo --config /path/to/config.yaml projects list
 `)
 	return nil
 }

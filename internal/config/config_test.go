@@ -23,10 +23,6 @@ func TestGetConfigDir(t *testing.T) {
 func TestCredentials_SaveAndLoad(t *testing.T) {
 	// Use a temporary directory for testing
 	tmpDir := t.TempDir()
-	
-	// Override the config directory for testing
-	origGetConfigDir := GetConfigDir
-	defer func() { _ = origGetConfigDir }()
 
 	// Create test credentials
 	creds := &Credentials{
@@ -37,8 +33,8 @@ func TestCredentials_SaveAndLoad(t *testing.T) {
 	}
 
 	// Save to temp location
-	testPath := filepath.Join(tmpDir, "config.json")
-	
+	testPath := filepath.Join(tmpDir, "credentials")
+
 	// Write credentials manually for test
 	data := []byte(`{"auth_type":"api_key","api_key":"test-api-key-12345","user_id":123,"user_name":"Test User"}`)
 	err := os.WriteFile(testPath, data, 0600)
@@ -71,11 +67,11 @@ func TestCredentials_SaveAndLoad(t *testing.T) {
 	_ = creds // Used to set up the test
 }
 
-func TestCredentials_JSONMarshaling(t *testing.T) {
+func TestCredentials_Fields(t *testing.T) {
 	tests := []struct {
 		name     string
 		creds    Credentials
-		contains []string
+		authType string
 	}{
 		{
 			name: "api_key auth",
@@ -85,7 +81,7 @@ func TestCredentials_JSONMarshaling(t *testing.T) {
 				UserID:   42,
 				UserName: "Alice",
 			},
-			contains: []string{`"auth_type":"api_key"`, `"api_key":"my-key"`, `"user_id":42`},
+			authType: "api_key",
 		},
 		{
 			name: "basic auth",
@@ -95,15 +91,14 @@ func TestCredentials_JSONMarshaling(t *testing.T) {
 				UserID:   42,
 				UserName: "Alice",
 			},
-			contains: []string{`"auth_type":"basic"`, `"email":"alice@example.com"`},
+			authType: "basic",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// This is a simple validation that the struct can be used
-			if tt.creds.AuthType == "" {
-				t.Error("auth type should not be empty")
+			if tt.creds.AuthType != tt.authType {
+				t.Errorf("expected auth type %s, got %s", tt.authType, tt.creds.AuthType)
 			}
 			if tt.creds.UserID == 0 {
 				t.Error("user ID should not be zero")
@@ -112,9 +107,34 @@ func TestCredentials_JSONMarshaling(t *testing.T) {
 	}
 }
 
+func TestConfig_Fields(t *testing.T) {
+	cfg := Config{
+		API: APIConfig{
+			BaseURL: "https://custom.api.com",
+			Timeout: "60s",
+		},
+		Defaults: DefaultsConfig{
+			Format:   "json",
+			Timezone: "UTC",
+		},
+		Output: OutputConfig{
+			DateFormat: "2006-01-02",
+			TimeFormat: "15:04",
+		},
+	}
+
+	if cfg.API.BaseURL != "https://custom.api.com" {
+		t.Errorf("unexpected base URL: %s", cfg.API.BaseURL)
+	}
+
+	if cfg.Defaults.Format != "json" {
+		t.Errorf("unexpected format: %s", cfg.Defaults.Format)
+	}
+}
+
 func TestGetAPIBaseURL(t *testing.T) {
 	url := GetAPIBaseURL()
-	
+
 	if url != DefaultAPIBaseURL {
 		t.Errorf("expected %s, got %s", DefaultAPIBaseURL, url)
 	}
@@ -122,9 +142,26 @@ func TestGetAPIBaseURL(t *testing.T) {
 
 func TestGetOutputFormat(t *testing.T) {
 	format := GetOutputFormat()
-	
+
 	// Default should be "table"
 	if format != "table" {
 		t.Errorf("expected 'table', got '%s'", format)
+	}
+}
+
+func TestGetAPIKeyFromEnv(t *testing.T) {
+	// Test with no env var
+	key := GetAPIKeyFromEnv()
+	if key != "" {
+		t.Error("expected empty key when env var not set")
+	}
+
+	// Test with env var set
+	os.Setenv("PAYMO_API_KEY", "test-key-123")
+	defer os.Unsetenv("PAYMO_API_KEY")
+
+	key = GetAPIKeyFromEnv()
+	if key != "test-key-123" {
+		t.Errorf("expected 'test-key-123', got '%s'", key)
 	}
 }

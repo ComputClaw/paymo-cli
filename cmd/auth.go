@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -89,7 +90,7 @@ Interactive login:
 		}
 		
 		fmt.Printf("\n🎉 Successfully authenticated as %s (%s)\n", user.Name, user.Email)
-		fmt.Printf("   Credentials saved to ~/.config/paymo-cli/config.json\n")
+		fmt.Printf("   Credentials saved to ~/.config/paymo-cli/credentials\n")
 		
 		return nil
 	},
@@ -156,17 +157,29 @@ var statusAuthCmd = &cobra.Command{
 	},
 }
 
-// getAPIClient creates an API client from stored credentials
+// getAPIClient creates an API client from stored credentials or environment
 func getAPIClient() (*api.Client, error) {
+	// Check environment variable first
+	if envKey := config.GetAPIKeyFromEnv(); envKey != "" {
+		auth := &api.APIKeyAuth{APIKey: envKey}
+		return api.NewClientWithBaseURL(config.GetAPIBaseURL(), auth), nil
+	}
+
+	// Check credentials file
 	creds, err := config.LoadCredentials()
 	if err != nil {
 		return nil, fmt.Errorf("loading credentials: %w", err)
 	}
-	
+
 	if creds == nil {
-		return nil, fmt.Errorf("not authenticated - run 'paymo auth login' first")
+		return nil, fmt.Errorf("not authenticated - run 'paymo auth login' first\n   or set PAYMO_API_KEY environment variable")
 	}
-	
+
+	// Warn about insecure permissions
+	if err := config.CheckCredentialsPermissions(); err != nil {
+		fmt.Fprintf(os.Stderr, "⚠️  Warning: %v\n", err)
+	}
+
 	var auth api.Authenticator
 	switch creds.AuthType {
 	case "api_key":
@@ -177,7 +190,7 @@ func getAPIClient() (*api.Client, error) {
 	default:
 		return nil, fmt.Errorf("unknown auth type: %s", creds.AuthType)
 	}
-	
+
 	return api.NewClientWithBaseURL(config.GetAPIBaseURL(), auth), nil
 }
 
