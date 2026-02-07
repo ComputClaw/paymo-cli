@@ -1,25 +1,27 @@
 # paymo-cli
 
-A command-line client for Paymo time tracking and project management.
+A powerful command-line client for [Paymo](https://www.paymoapp.com/) time tracking and project management. Built for developers, freelancers, and AI agents who prefer the terminal.
 
-## 🚀 Features
+## ✨ Features
 
-- **Time Tracking**: Start/stop timers, log time entries
-- **Project Management**: List, create, and manage projects
-- **Task Management**: Handle tasks and task lists
-- **Reporting**: Generate time reports and export data
-- **Multiple Auth Methods**: Email/password or API key authentication
-- **Multiple Output Formats**: Table, JSON, CSV output
-- **Offline Capability**: Local caching with sync (planned)
+- **Time Tracking**: Start/stop timers, log entries, view history with date filtering
+- **Project Management**: List, create, show, and archive projects
+- **Task Management**: Full CRUD for tasks with completion tracking
+- **Multiple Output Formats**: Table (pretty Unicode), JSON, CSV
+- **Local Timer State**: Timer persists across sessions — never lose tracked time
+- **Rate Limit Aware**: Respects Paymo API limits with automatic backoff
+- **Built-in Documentation**: `paymo docs` for quick reference without leaving the terminal
+- **AI-Friendly**: Consistent output formats and comprehensive `--help` for agent use
 
 ## 📦 Installation
 
-### From Source (Development)
+### From Source
 
 ```bash
 git clone https://github.com/ComputClaw/paymo-cli.git
 cd paymo-cli
-go build -o paymo
+go build -o paymo .
+sudo mv paymo /usr/local/bin/  # Optional: install globally
 ```
 
 ### Homebrew (Coming Soon)
@@ -28,181 +30,194 @@ go build -o paymo
 brew install computclaw/tap/paymo-cli
 ```
 
-### Direct Download (Coming Soon)
+### Binary Releases (Coming Soon)
 
-Download the latest binary from the [releases page](https://github.com/ComputClaw/paymo-cli/releases).
+Download pre-built binaries from the [releases page](https://github.com/ComputClaw/paymo-cli/releases).
 
-## 🔧 Setup
+## 🔧 Quick Start
 
-### 1. Authentication
+### 1. Authenticate
 
-**Using API Key (Recommended):**
 ```bash
+# Using API key (recommended)
 paymo auth login --api-key YOUR_API_KEY
-```
 
-**Using Email/Password:**
-```bash
-paymo auth login
-```
-
-### 2. Configuration
-
-Create a configuration file at `~/.paymo.yaml`:
-
-```yaml
-api:
-  endpoint: "https://app.paymoapp.com/api"
-  timeout: 30s
-
-defaults:
-  format: table
-  project_id: ""
-  
-output:
-  timezone: "Europe/Copenhagen"
-  date_format: "2006-01-02"
-```
-
-## 🕒 Time Tracking
-
-### Quick Start
-
-```bash
-# Start tracking time
-paymo time start "My Project" "Development Task" "Working on CLI features"
-
-# Check status
-paymo time status
-
-# Stop tracking
-paymo time stop
-
-# View recent entries
-paymo time log
-```
-
-### Advanced Usage
-
-```bash
-# Start with specific project/task IDs
-paymo time start -p 123 -t 456 -d "Bug fixes"
-
-# View time entries for specific date
-paymo time log --date 2026-02-07
-
-# Filter by project
-paymo time log --project "paymo-cli"
-
-# Export as JSON
-paymo time log --format json > timesheet.json
-```
-
-## 📁 Project Management
-
-```bash
-# List all projects
-paymo projects list
-
-# Show active projects only
-paymo projects list --active
-
-# Create a new project
-paymo projects create "New Project" --client "Client Name" --billable
-
-# View project details
-paymo projects show "Project Name"
-```
-
-## 🔑 Authentication
-
-```bash
 # Check authentication status
 paymo auth status
+```
 
-# Switch to API key authentication
-paymo auth login --api-key YOUR_NEW_KEY
+Get your API key from Paymo → Settings → API Keys.
 
-# Logout
-paymo auth logout
+### 2. Start Tracking Time
+
+```bash
+# Start a timer on a project/task
+paymo time start "My Project" "Development" --description "Working on features"
+
+# Check what's running
+paymo time status
+
+# Stop and save
+paymo time stop
+```
+
+### 3. Explore
+
+```bash
+# List your projects
+paymo projects list
+
+# View today's time entries
+paymo time log --date today
+
+# Built-in docs
+paymo docs
+```
+
+## 📖 Commands
+
+### Time Tracking
+
+```bash
+paymo time start <project> <task> [-d "description"]  # Start timer
+paymo time stop                                        # Stop and save
+paymo time status                                      # Current timer status
+paymo time log [--date DATE] [--project NAME]          # View entries
+```
+
+Date filters: `today`, `yesterday`, `this-week`, `last-week`, or `YYYY-MM-DD`
+
+### Projects
+
+```bash
+paymo projects list [--active]              # List projects
+paymo projects show <name-or-id>            # Project details
+paymo projects create <name> [--client ID]  # Create project
+paymo projects archive <name-or-id>         # Archive project
+```
+
+### Tasks
+
+```bash
+paymo tasks list --project <name-or-id>     # List tasks in project
+paymo tasks show <task-id>                  # Task details
+paymo tasks create <name> --project <id> --tasklist <id>  # Create task
+paymo tasks complete <task-id>              # Mark complete
+```
+
+### Authentication
+
+```bash
+paymo auth login [--api-key KEY]  # Authenticate
+paymo auth status                 # Check current auth
+paymo auth logout                 # Clear credentials
+```
+
+### Documentation
+
+```bash
+paymo docs                    # List all topics
+paymo docs auth               # Authentication help
+paymo docs time               # Time tracking help
+paymo docs formats            # Output format details
+paymo docs examples           # Usage examples
+```
+
+### Help & Info
+
+```bash
+paymo --version               # Show version
+paymo --help                  # Global help
+paymo help <command>          # Command-specific help
+paymo man                     # Generate man pages
+paymo markdown                # Generate markdown docs
 ```
 
 ## 📊 Output Formats
 
-All list commands support multiple output formats:
+All list commands support multiple formats via `--format`:
 
 ```bash
-# Table format (default)
+# Pretty table (default)
 paymo projects list
 
-# JSON format
+# JSON for scripting/automation
 paymo projects list --format json
 
-# CSV format
-paymo projects list --format csv
+# CSV for spreadsheets
+paymo time log --format csv > timesheet.csv
 ```
 
 ## ⚙️ Configuration
 
-### Global Flags
+Configuration is stored in `~/.config/paymo-cli/`:
 
-- `--verbose, -v`: Enable verbose output
-- `--format, -f`: Output format (table, json, csv)
-- `--config`: Custom config file path
+- `config.json` — API settings
+- `credentials.json` — Authentication (mode 0600)
+- `timer.json` — Active timer state
 
 ### Environment Variables
 
-All configuration can be overridden with environment variables:
-
 ```bash
-export PAYMO_API_KEY=your_key
-export PAYMO_FORMAT=json
-export PAYMO_VERBOSE=true
+export PAYMO_API_KEY=your_key        # API key
+export PAYMO_FORMAT=json             # Default output format
 ```
 
-## 🔌 API Integration
+## 🔌 API Coverage
 
-This CLI uses the [Paymo API v1](https://github.com/paymo-org/api) with the following features:
+Built on the [Paymo REST API](https://github.com/paymo-org/api):
 
-- ✅ Authentication (API key, email/password)
-- ✅ Rate limiting compliance
-- ✅ Error handling
-- ✅ Project management
-- ✅ Time entry management
-- ✅ Task management
-- ✅ User management
-- ✅ Report generation
+| Feature | Status |
+|---------|--------|
+| Authentication | ✅ API key + basic auth |
+| Time Entries | ✅ Full CRUD |
+| Projects | ✅ List, create, show, archive |
+| Tasks | ✅ List, create, show, complete |
+| Task Lists | ✅ List |
+| Users | ✅ Current user info |
+| Rate Limiting | ✅ Automatic handling |
+| Filtering | ✅ Paymo `where` syntax |
 
-## 🏗️ Development Status
+## 🧪 Development
 
-This project is in active development. Current status:
+```bash
+# Run tests
+go test ./...
 
-- ✅ CLI structure and commands
-- ✅ Configuration management
-- 🚧 Paymo API client implementation
-- 🚧 Authentication flows
-- 🚧 Time tracking functionality
-- 🚧 Project management
-- 🚧 Offline caching
-- 🚧 Shell completions
-- 🚧 Tests
+# Build
+go build -o paymo .
 
-## 🤝 Contributing
+# Run with verbose output
+./paymo --verbose projects list
+```
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
+### Project Structure
+
+```
+├── cmd/           # Cobra commands (auth, time, projects, tasks, docs)
+├── internal/
+│   ├── api/       # Paymo API client with rate limiting
+│   ├── config/    # Configuration and timer state management
+│   └── output/    # Table, JSON, CSV formatters
+├── main.go
+└── go.mod
+```
+
+### Branch: `feature/caching`
+
+Optional SQLite caching for offline/faster lookups:
+- Project and task caching with TTL
+- Fuzzy name matching
+- Stats and cache management
 
 ## 📝 License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE) for details.
 
 ## 🔗 Links
 
 - [Paymo API Documentation](https://github.com/paymo-org/api)
-- [Project Issues](https://github.com/ComputClaw/paymo-cli/issues)
+- [Issues](https://github.com/ComputClaw/paymo-cli/issues)
 - [Releases](https://github.com/ComputClaw/paymo-cli/releases)
 
 ---
