@@ -6,6 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
+
+	"github.com/ComputClaw/paymo-cli/internal/api"
+	"github.com/ComputClaw/paymo-cli/internal/config"
 )
 
 // authCmd represents the auth command
@@ -20,35 +23,74 @@ var loginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Authenticate with Paymo",
 	Long: `Set up authentication credentials for Paymo API access.
-You can use either email/password or API key authentication.`,
+You can use either email/password or API key authentication.
+
+API Key (recommended):
+  paymo auth login --api-key YOUR_API_KEY
+
+Interactive login:
+  paymo auth login`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		apiKey, _ := cmd.Flags().GetString("api-key")
 		
-		if apiKey != "" {
-			fmt.Printf("🔑 Setting up API key authentication...\n")
-			fmt.Println("⚠️  Implementation pending - will store API key securely")
-			return nil
-		}
-
-		// Interactive email/password setup
-		fmt.Print("Email: ")
-		var email string
-		fmt.Scanln(&email)
-
-		fmt.Print("Password: ")
-		bytePassword, err := term.ReadPassword(int(syscall.Stdin))
-		if err != nil {
-			return fmt.Errorf("error reading password: %v", err)
-		}
-		password := string(bytePassword)
-		fmt.Println() // New line after password input
-
-		fmt.Printf("🔐 Authenticating %s...\n", email)
-		fmt.Println("⚠️  Implementation pending - this will authenticate with Paymo API")
+		var auth api.Authenticator
+		var creds *config.Credentials
 		
-		// Hide the actual password in output
-		_ = password
+		if apiKey != "" {
+			// API key authentication
+			auth = &api.APIKeyAuth{APIKey: apiKey}
+			creds = &config.Credentials{
+				AuthType: "api_key",
+				APIKey:   apiKey,
+			}
+		} else {
+			// Interactive email/password
+			email, _ := cmd.Flags().GetString("email")
+			if email == "" {
+				fmt.Print("Email: ")
+				fmt.Scanln(&email)
+			}
 
+			fmt.Print("Password: ")
+			bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+			if err != nil {
+				return fmt.Errorf("error reading password: %v", err)
+			}
+			password := string(bytePassword)
+			fmt.Println() // New line after password input
+
+			auth = &api.BasicAuth{Email: email, Password: password}
+			creds = &config.Credentials{
+				AuthType: "basic",
+				Email:    email,
+				// Note: We don't store the password for security
+			}
+		}
+
+		// Validate credentials by making an API call
+		fmt.Print("🔐 Validating credentials... ")
+		
+		client := api.NewClient(auth)
+		user, err := client.GetMe()
+		if err != nil {
+			fmt.Println("❌")
+			return fmt.Errorf("authentication failed: %v", err)
+		}
+		
+		fmt.Println("✅")
+		
+		// Store user info in credentials
+		creds.UserID = user.ID
+		creds.UserName = user.Name
+		
+		// Save credentials
+		if err := config.SaveCredentials(creds); err != nil {
+			return fmt.Errorf("saving credentials: %v", err)
+		}
+		
+		fmt.Printf("\n🎉 Successfully authenticated as %s (%s)\n", user.Name, user.Email)
+		fmt.Printf("   Credentials saved to ~/.paymo/credentials.json\n")
+		
 		return nil
 	},
 }
@@ -58,8 +100,19 @@ var logoutCmd = &cobra.Command{
 	Use:   "logout",
 	Short: "Clear authentication credentials",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("🚪 Logging out...")
-		fmt.Println("⚠️  Implementation pending - will clear stored credentials")
+		if !config.HasCredentials() {
+			fmt.Println("Not currently logged in.")
+			return nil
+		}
+		
+		if err := config.DeleteCredentials(); err != nil {
+			return fmt.Errorf("removing credentials: %v", err)
+		}
+		
+		// Also clear any active timer state
+		config.ClearTimerState()
+		
+		fmt.Println("🚪 Successfully logged out.")
 		return nil
 	},
 }
@@ -69,10 +122,63 @@ var statusAuthCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show authentication status",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("🔍 Authentication Status")
-		fmt.Println("⚠️  Implementation pending - will show current auth state")
+		creds, err := config.LoadCredentials()
+		if err != nil {
+			return fmt.Errorf("loading credentials: %v", err)
+		}
+		
+		if creds == nil {
+			fmt.Println("🔒 Not authenticated")
+			fmt.Println("\nRun 'paymo auth login' to authenticate.")
+			return nil
+		}
+		
+		fmt.Println("🔓 Authenticated")
+		fmt.Printf("   Method: %s\n", creds.AuthType)
+		if creds.UserName != "" {
+			fmt.Printf("   User: %s (ID: %d)\n", creds.UserName, creds.UserID)
+		}
+		
+		// Try to validate the credentials are still valid
+		client, err := getAPIClient()
+		if err != nil {
+			fmt.Println("   Status: ⚠️  Unable to verify (no valid auth)")
+			return nil
+		}
+		
+		if err := client.ValidateAuth(); err != nil {
+			fmt.Println("   Status: ❌ Invalid or expired")
+		} else {
+			fmt.Println("   Status: ✅ Valid")
+		}
+		
 		return nil
 	},
+}
+
+// getAPIClient creates an API client from stored credentials
+func getAPIClient() (*api.Client, error) {
+	creds, err := config.LoadCredentials()
+	if err != nil {
+		return nil, fmt.Errorf("loading credentials: %w", err)
+	}
+	
+	if creds == nil {
+		return nil, fmt.Errorf("not authenticated - run 'paymo auth login' first")
+	}
+	
+	var auth api.Authenticator
+	switch creds.AuthType {
+	case "api_key":
+		auth = &api.APIKeyAuth{APIKey: creds.APIKey}
+	case "basic":
+		// Basic auth requires password which we don't store
+		return nil, fmt.Errorf("session expired - please login again with 'paymo auth login'")
+	default:
+		return nil, fmt.Errorf("unknown auth type: %s", creds.AuthType)
+	}
+	
+	return api.NewClientWithBaseURL(config.GetAPIBaseURL(), auth), nil
 }
 
 func init() {
@@ -84,5 +190,4 @@ func init() {
 	// Flags for login command
 	loginCmd.Flags().StringP("api-key", "k", "", "authenticate using API key")
 	loginCmd.Flags().StringP("email", "e", "", "email address")
-	loginCmd.Flags().StringP("server", "s", "https://app.paymoapp.com", "Paymo server URL")
 }
