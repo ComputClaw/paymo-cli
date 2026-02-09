@@ -194,7 +194,8 @@ var statusAuthCmd = &cobra.Command{
 
 // getAPIClient creates an API client from stored credentials or environment.
 // When caching is enabled, the returned client transparently caches reads.
-func getAPIClient() (api.PaymoAPI, error) {
+// Defined as a var to allow test injection.
+var getAPIClient = func() (api.PaymoAPI, error) {
 	// Check environment variable first
 	if envKey := config.GetAPIKeyFromEnv(); envKey != "" {
 		auth := &api.APIKeyAuth{APIKey: envKey}
@@ -231,6 +232,7 @@ func getAPIClient() (api.PaymoAPI, error) {
 	client := api.NewClientWithBaseURL(config.GetAPIBaseURL(), auth)
 	return wrapWithCache(client), nil
 }
+
 
 // wrapWithCache wraps a client with the JSON file cache layer if enabled.
 func wrapWithCache(client api.PaymoAPI) api.PaymoAPI {
