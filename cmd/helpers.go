@@ -18,7 +18,7 @@ func newFormatter() *output.Formatter {
 }
 
 // resolveProjectID resolves a project argument (ID or name) to a numeric ID
-func resolveProjectID(client *api.Client, arg string) (int, error) {
+func resolveProjectID(client api.PaymoAPI, arg string) (int, error) {
 	if id, err := strconv.Atoi(arg); err == nil {
 		return id, nil
 	}
@@ -30,7 +30,7 @@ func resolveProjectID(client *api.Client, arg string) (int, error) {
 }
 
 // resolveProject resolves a project argument (ID or name) to a full Project
-func resolveProject(client *api.Client, arg string) (*api.Project, error) {
+func resolveProject(client api.PaymoAPI, arg string) (*api.Project, error) {
 	if id, err := strconv.Atoi(arg); err == nil {
 		project, err := client.GetProject(id)
 		if err != nil {
@@ -47,7 +47,7 @@ func resolveProject(client *api.Client, arg string) (*api.Project, error) {
 
 // resolveTask resolves a task argument (ID or name) to a full Task.
 // Name-based lookup requires a project context.
-func resolveTask(client *api.Client, arg string, projectFlag string) (*api.Task, error) {
+func resolveTask(client api.PaymoAPI, arg string, projectFlag string) (*api.Task, error) {
 	if id, err := strconv.Atoi(arg); err == nil {
 		task, err := client.GetTask(id)
 		if err != nil {

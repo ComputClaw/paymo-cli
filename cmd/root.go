@@ -75,11 +75,13 @@ func init() {
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "verbose output")
 	rootCmd.PersistentFlags().StringP("format", "f", "table", "output format: table, json, csv")
 	rootCmd.PersistentFlags().BoolP("quiet", "q", false, "minimal output (IDs only for create/mutate commands)")
+	rootCmd.PersistentFlags().Bool("no-cache", false, "bypass cache, force fresh API calls")
 
 	// Bind flags to viper
 	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 	viper.BindPFlag("format", rootCmd.PersistentFlags().Lookup("format"))
 	viper.BindPFlag("quiet", rootCmd.PersistentFlags().Lookup("quiet"))
+	viper.BindPFlag("no_cache", rootCmd.PersistentFlags().Lookup("no-cache"))
 
 	// Let main.go handle error output (needed for JSON structured errors)
 	rootCmd.SilenceErrors = true

@@ -3,12 +3,15 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"syscall"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"golang.org/x/term"
 
 	"github.com/ComputClaw/paymo-cli/internal/api"
+	"github.com/ComputClaw/paymo-cli/internal/cache"
 	"github.com/ComputClaw/paymo-cli/internal/config"
 )
 
@@ -189,12 +192,14 @@ var statusAuthCmd = &cobra.Command{
 	},
 }
 
-// getAPIClient creates an API client from stored credentials or environment
-func getAPIClient() (*api.Client, error) {
+// getAPIClient creates an API client from stored credentials or environment.
+// When caching is enabled, the returned client transparently caches reads.
+func getAPIClient() (api.PaymoAPI, error) {
 	// Check environment variable first
 	if envKey := config.GetAPIKeyFromEnv(); envKey != "" {
 		auth := &api.APIKeyAuth{APIKey: envKey}
-		return api.NewClientWithBaseURL(config.GetAPIBaseURL(), auth), nil
+		client := api.NewClientWithBaseURL(config.GetAPIBaseURL(), auth)
+		return wrapWithCache(client), nil
 	}
 
 	// Check credentials file
@@ -223,7 +228,28 @@ func getAPIClient() (*api.Client, error) {
 		return nil, fmt.Errorf("unknown auth type: %s", creds.AuthType)
 	}
 
-	return api.NewClientWithBaseURL(config.GetAPIBaseURL(), auth), nil
+	client := api.NewClientWithBaseURL(config.GetAPIBaseURL(), auth)
+	return wrapWithCache(client), nil
+}
+
+// wrapWithCache wraps a client with the JSON file cache layer if enabled.
+func wrapWithCache(client api.PaymoAPI) api.PaymoAPI {
+	if viper.GetBool("no_cache") {
+		return client
+	}
+	cacheDir, err := config.GetConfigDir()
+	if err != nil {
+		return client
+	}
+	cachePath := filepath.Join(cacheDir, "cache.json")
+	store, err := cache.Open(cachePath)
+	if err != nil {
+		if viper.GetBool("verbose") {
+			fmt.Fprintf(os.Stderr, "Warning: cache unavailable: %v\n", err)
+		}
+		return client
+	}
+	return cache.NewCachedClient(client, store)
 }
 
 func init() {

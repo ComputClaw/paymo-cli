@@ -34,8 +34,9 @@ config.yml
 
 # Cache and logs
 *.log
-cache/
+/cache/
 .cache/
+*.cache.json
 
 # Build artifacts
 dist/
