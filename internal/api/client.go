@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -78,13 +80,20 @@ func NewClient(auth Authenticator) *Client {
 // NewClientWithBaseURL creates a client with a custom base URL
 func NewClientWithBaseURL(baseURL string, auth Authenticator) *Client {
 	client := NewClient(auth)
-	client.BaseURL = strings.TrimSuffix(baseURL, "/")
+	trimmed := strings.TrimSuffix(baseURL, "/")
+	if !strings.HasPrefix(trimmed, "https://") &&
+		!strings.HasPrefix(trimmed, "http://localhost") &&
+		!strings.HasPrefix(trimmed, "http://127.0.0.1") {
+		fmt.Fprintf(os.Stderr, "Warning: base URL %q does not use HTTPS. Credentials may be transmitted insecurely.\n", trimmed)
+	}
+	client.BaseURL = trimmed
 	return client
 }
 
 // APIError represents an error from the Paymo API
 type APIError struct {
 	StatusCode int
+	Code       string // e.g., "AUTH_FAILED", "NOT_FOUND", "RATE_LIMITED"
 	Message    string
 	Details    map[string]interface{}
 }
@@ -94,6 +103,37 @@ func (e *APIError) Error() string {
 		return fmt.Sprintf("Paymo API error (%d): %s", e.StatusCode, e.Message)
 	}
 	return fmt.Sprintf("Paymo API error: HTTP %d", e.StatusCode)
+}
+
+// ExitCode returns a distinct exit code based on the error category
+func (e *APIError) ExitCode() int {
+	switch e.Code {
+	case "USAGE_ERROR":
+		return 2
+	case "AUTH_FAILED":
+		return 3
+	case "NOT_FOUND":
+		return 4
+	case "RATE_LIMITED":
+		return 5
+	default:
+		return 6
+	}
+}
+
+func classifyHTTPStatus(statusCode int) string {
+	switch {
+	case statusCode == 401 || statusCode == 403:
+		return "AUTH_FAILED"
+	case statusCode == 404:
+		return "NOT_FOUND"
+	case statusCode == 429:
+		return "RATE_LIMITED"
+	case statusCode == 400:
+		return "USAGE_ERROR"
+	default:
+		return "API_ERROR"
+	}
 }
 
 // Request makes an authenticated request to the Paymo API
@@ -148,7 +188,8 @@ func (c *Client) Request(method, path string, body io.Reader, result interface{}
 	// Check for errors
 	if resp.StatusCode >= 400 {
 		apiErr := &APIError{StatusCode: resp.StatusCode}
-		
+		apiErr.Code = classifyHTTPStatus(resp.StatusCode)
+
 		// Try to parse error message
 		var errResp map[string]interface{}
 		if json.Unmarshal(respBody, &errResp) == nil {
@@ -157,7 +198,7 @@ func (c *Client) Request(method, path string, body io.Reader, result interface{}
 			}
 			apiErr.Details = errResp
 		}
-		
+
 		return apiErr
 	}
 
@@ -177,15 +218,19 @@ func (c *Client) updateRateLimit(resp *http.Response) {
 	defer c.rateMu.Unlock()
 
 	if limit := resp.Header.Get("X-Ratelimit-Limit"); limit != "" {
-		fmt.Sscanf(limit, "%d", &c.rateLimit)
+		if v, err := strconv.Atoi(limit); err == nil {
+			c.rateLimit = v
+		}
 	}
 	if remaining := resp.Header.Get("X-Ratelimit-Remaining"); remaining != "" {
-		fmt.Sscanf(remaining, "%d", &c.rateRemaining)
+		if v, err := strconv.Atoi(remaining); err == nil {
+			c.rateRemaining = v
+		}
 	}
 	if decay := resp.Header.Get("X-Ratelimit-Decay-Period"); decay != "" {
-		var seconds int
-		fmt.Sscanf(decay, "%d", &seconds)
-		c.rateReset = time.Now().Add(time.Duration(seconds) * time.Second)
+		if v, err := strconv.Atoi(decay); err == nil {
+			c.rateReset = time.Now().Add(time.Duration(v) * time.Second)
+		}
 	}
 }
 

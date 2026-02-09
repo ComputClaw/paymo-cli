@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/url"
+	"strings"
 )
 
 // GetTasks returns tasks with optional filtering
@@ -83,7 +84,8 @@ func (c *Client) GetTask(id int) (*Task, error) {
 // GetTaskByName finds a task by name within a project
 func (c *Client) GetTaskByName(projectID int, name string) (*Task, error) {
 	params := url.Values{}
-	params.Set("where", fmt.Sprintf("project_id=%d and name like \"%%%s%%\"", projectID, name))
+	sanitized := strings.NewReplacer("\"", "", "\\", "", "'", "").Replace(name)
+	params.Set("where", fmt.Sprintf("project_id=%d and name like \"%%%s%%\"", projectID, sanitized))
 	
 	var resp TasksResponse
 	if err := c.GetWithParams("tasks", params, &resp); err != nil {

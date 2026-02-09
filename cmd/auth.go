@@ -33,10 +33,10 @@ Interactive login:
   paymo auth login`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		apiKey, _ := cmd.Flags().GetString("api-key")
-		
+
 		var auth api.Authenticator
 		var creds *config.Credentials
-		
+
 		if apiKey != "" {
 			// API key authentication
 			auth = &api.APIKeyAuth{APIKey: apiKey}
@@ -69,30 +69,37 @@ Interactive login:
 		}
 
 		// Validate credentials by making an API call
-		fmt.Print("🔐 Validating credentials... ")
-		
+		formatter := newFormatter()
+		if formatter.Format != "json" && !formatter.Quiet {
+			fmt.Print("Validating credentials... ")
+		}
+
 		client := api.NewClient(auth)
 		user, err := client.GetMe()
 		if err != nil {
-			fmt.Println("❌")
+			if formatter.Format != "json" && !formatter.Quiet {
+				fmt.Println("failed")
+			}
 			return fmt.Errorf("authentication failed: %v", err)
 		}
-		
-		fmt.Println("✅")
-		
+
+		if formatter.Format != "json" && !formatter.Quiet {
+			fmt.Println("ok")
+		}
+
 		// Store user info in credentials
 		creds.UserID = user.ID
 		creds.UserName = user.Name
-		
+
 		// Save credentials
 		if err := config.SaveCredentials(creds); err != nil {
 			return fmt.Errorf("saving credentials: %v", err)
 		}
-		
-		fmt.Printf("\n🎉 Successfully authenticated as %s (%s)\n", user.Name, user.Email)
-		fmt.Printf("   Credentials saved to ~/.config/paymo-cli/credentials\n")
-		
-		return nil
+
+		return formatter.FormatSuccess(
+			fmt.Sprintf("Successfully authenticated as %s (%s)", user.Name, user.Email),
+			user.ID,
+		)
 	},
 }
 
@@ -102,19 +109,19 @@ var logoutCmd = &cobra.Command{
 	Short: "Clear authentication credentials",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if !config.HasCredentials() {
-			fmt.Println("Not currently logged in.")
-			return nil
+			formatter := newFormatter()
+			return formatter.FormatSuccess("Not currently logged in.", 0)
 		}
-		
+
 		if err := config.DeleteCredentials(); err != nil {
 			return fmt.Errorf("removing credentials: %v", err)
 		}
-		
+
 		// Also clear any active timer state
 		config.ClearTimerState()
-		
-		fmt.Println("🚪 Successfully logged out.")
-		return nil
+
+		formatter := newFormatter()
+		return formatter.FormatSuccess("Successfully logged out.", 0)
 	},
 }
 
@@ -127,32 +134,57 @@ var statusAuthCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("loading credentials: %v", err)
 		}
-		
+
+		formatter := newFormatter()
+
 		if creds == nil {
-			fmt.Println("🔒 Not authenticated")
-			fmt.Println("\nRun 'paymo auth login' to authenticate.")
+			if formatter.Format == "json" {
+				return formatter.FormatTimerStatus(map[string]interface{}{
+					"authenticated": false,
+				})
+			}
+			if !formatter.Quiet {
+				fmt.Fprintln(formatter.Writer, "Not authenticated")
+				fmt.Fprintln(formatter.Writer, "\nRun 'paymo auth login' to authenticate.")
+			}
 			return nil
 		}
-		
-		fmt.Println("🔓 Authenticated")
-		fmt.Printf("   Method: %s\n", creds.AuthType)
-		if creds.UserName != "" {
-			fmt.Printf("   User: %s (ID: %d)\n", creds.UserName, creds.UserID)
-		}
-		
+
 		// Try to validate the credentials are still valid
-		client, err := getAPIClient()
-		if err != nil {
-			fmt.Println("   Status: ⚠️  Unable to verify (no valid auth)")
-			return nil
+		client, clientErr := getAPIClient()
+		valid := false
+		if clientErr == nil {
+			if err := client.ValidateAuth(); err == nil {
+				valid = true
+			}
 		}
-		
-		if err := client.ValidateAuth(); err != nil {
-			fmt.Println("   Status: ❌ Invalid or expired")
-		} else {
-			fmt.Println("   Status: ✅ Valid")
+
+		if formatter.Format == "json" {
+			status := map[string]interface{}{
+				"authenticated": true,
+				"method":        creds.AuthType,
+				"valid":         valid,
+			}
+			if creds.UserName != "" {
+				status["user_name"] = creds.UserName
+				status["user_id"] = creds.UserID
+			}
+			return formatter.FormatTimerStatus(status)
 		}
-		
+
+		if !formatter.Quiet {
+			fmt.Fprintln(formatter.Writer, "Authenticated")
+			fmt.Fprintf(formatter.Writer, "  Method: %s\n", creds.AuthType)
+			if creds.UserName != "" {
+				fmt.Fprintf(formatter.Writer, "  User:   %s (ID: %d)\n", creds.UserName, creds.UserID)
+			}
+			if valid {
+				fmt.Fprintf(formatter.Writer, "  Status: Valid\n")
+			} else {
+				fmt.Fprintf(formatter.Writer, "  Status: Invalid or expired\n")
+			}
+		}
+
 		return nil
 	},
 }
@@ -177,7 +209,7 @@ func getAPIClient() (*api.Client, error) {
 
 	// Warn about insecure permissions
 	if err := config.CheckCredentialsPermissions(); err != nil {
-		fmt.Fprintf(os.Stderr, "⚠️  Warning: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
 	}
 
 	var auth api.Authenticator

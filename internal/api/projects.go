@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/url"
+	"strings"
 )
 
 // GetProjects returns all projects with optional filtering
@@ -83,7 +84,8 @@ func (c *Client) GetProject(id int) (*Project, error) {
 // GetProjectByName finds a project by name (case-insensitive partial match)
 func (c *Client) GetProjectByName(name string) (*Project, error) {
 	params := url.Values{}
-	params.Set("where", fmt.Sprintf("name like \"%%%s%%\"", name))
+	sanitized := strings.NewReplacer("\"", "", "\\", "", "'", "").Replace(name)
+	params.Set("where", fmt.Sprintf("name like \"%%%s%%\"", sanitized))
 	
 	var resp ProjectsResponse
 	if err := c.GetWithParams("projects", params, &resp); err != nil {

@@ -3,6 +3,7 @@ package output
 import (
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,6 +16,7 @@ import (
 // Formatter handles output formatting
 type Formatter struct {
 	Format string
+	Quiet  bool
 	Writer io.Writer
 }
 
@@ -24,6 +26,195 @@ func NewFormatter(format string) *Formatter {
 		Format: strings.ToLower(format),
 		Writer: os.Stdout,
 	}
+}
+
+// SuccessResult is the JSON structure for non-resource success messages
+type SuccessResult struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+	ID      int    `json:"id,omitempty"`
+}
+
+// ErrorResult is the JSON structure for error output
+type ErrorResult struct {
+	Error ErrorDetail `json:"error"`
+}
+
+// ErrorDetail contains machine-readable error information
+type ErrorDetail struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Status  int    `json:"status,omitempty"`
+}
+
+// FormatProject outputs a single project (for show/create commands)
+func (f *Formatter) FormatProject(project *api.Project) error {
+	if f.Quiet {
+		fmt.Fprintf(f.Writer, "%d\n", project.ID)
+		return nil
+	}
+	switch f.Format {
+	case "json":
+		return f.formatJSON(project)
+	default:
+		return f.formatProjectDetail(project)
+	}
+}
+
+// FormatTask outputs a single task (for show/create commands)
+func (f *Formatter) FormatTask(task *api.Task) error {
+	if f.Quiet {
+		fmt.Fprintf(f.Writer, "%d\n", task.ID)
+		return nil
+	}
+	switch f.Format {
+	case "json":
+		return f.formatJSON(task)
+	default:
+		return f.formatTaskDetail(task)
+	}
+}
+
+// FormatTimeEntry outputs a single time entry (for start/stop commands)
+func (f *Formatter) FormatTimeEntry(entry *api.TimeEntry) error {
+	if f.Quiet {
+		fmt.Fprintf(f.Writer, "%d\n", entry.ID)
+		return nil
+	}
+	switch f.Format {
+	case "json":
+		return f.formatJSON(entry)
+	default:
+		return f.formatEntryDetail(entry)
+	}
+}
+
+// FormatTimerStatus outputs the current timer state
+func (f *Formatter) FormatTimerStatus(data interface{}) error {
+	if f.Quiet {
+		return nil
+	}
+	if f.Format == "json" {
+		return f.formatJSON(data)
+	}
+	return nil // caller handles table format
+}
+
+// FormatSuccess outputs a success message (for archive, complete, logout, etc.)
+func (f *Formatter) FormatSuccess(msg string, id int) error {
+	if f.Quiet {
+		if id > 0 {
+			fmt.Fprintf(f.Writer, "%d\n", id)
+		}
+		return nil
+	}
+	switch f.Format {
+	case "json":
+		return f.formatJSON(SuccessResult{Status: "ok", Message: msg, ID: id})
+	default:
+		fmt.Fprintln(f.Writer, msg)
+		return nil
+	}
+}
+
+// FormatError outputs a structured error to stderr
+func (f *Formatter) FormatError(err error) {
+	if f.Format == "json" {
+		detail := ErrorDetail{Code: "GENERAL_ERROR", Message: err.Error()}
+		var apiErr *api.APIError
+		if errors.As(err, &apiErr) {
+			detail.Code = apiErr.Code
+			detail.Status = apiErr.StatusCode
+			detail.Message = apiErr.Message
+			if detail.Message == "" {
+				detail.Message = err.Error()
+			}
+		}
+		data, _ := json.Marshal(ErrorResult{Error: detail})
+		fmt.Fprintln(os.Stderr, string(data))
+	} else {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	}
+}
+
+// formatProjectDetail outputs a single project in human-readable detail format
+func (f *Formatter) formatProjectDetail(p *api.Project) error {
+	fmt.Fprintf(f.Writer, "Project: %s\n", p.Name)
+	fmt.Fprintf(f.Writer, "  ID:       %d\n", p.ID)
+	if p.Code != "" {
+		fmt.Fprintf(f.Writer, "  Code:     %s\n", p.Code)
+	}
+	if p.Description != "" {
+		fmt.Fprintf(f.Writer, "  Desc:     %s\n", p.Description)
+	}
+	status := "Inactive"
+	if p.Active {
+		status = "Active"
+	}
+	fmt.Fprintf(f.Writer, "  Status:   %s\n", status)
+	billable := "No"
+	if p.Billable {
+		billable = "Yes"
+	}
+	fmt.Fprintf(f.Writer, "  Billable: %s\n", billable)
+	if p.BudgetHours > 0 {
+		fmt.Fprintf(f.Writer, "  Budget:   %.1f hours\n", p.BudgetHours)
+	}
+	if p.PricePerHour > 0 {
+		fmt.Fprintf(f.Writer, "  Rate:     $%.2f/hour\n", p.PricePerHour)
+	}
+	fmt.Fprintf(f.Writer, "  Created:  %s\n", p.CreatedOn.Format("2006-01-02"))
+	return nil
+}
+
+// formatTaskDetail outputs a single task in human-readable detail format
+func (f *Formatter) formatTaskDetail(t *api.Task) error {
+	fmt.Fprintf(f.Writer, "Task: %s\n", t.Name)
+	fmt.Fprintf(f.Writer, "  ID:         %d\n", t.ID)
+	if t.Code != "" {
+		fmt.Fprintf(f.Writer, "  Code:       %s\n", t.Code)
+	}
+	fmt.Fprintf(f.Writer, "  Project ID: %d\n", t.ProjectID)
+	status := "Open"
+	if t.Complete {
+		status = "Complete"
+	}
+	fmt.Fprintf(f.Writer, "  Status:     %s\n", status)
+	billable := "No"
+	if t.Billable {
+		billable = "Yes"
+	}
+	fmt.Fprintf(f.Writer, "  Billable:   %s\n", billable)
+	if t.DueDate != "" {
+		fmt.Fprintf(f.Writer, "  Due Date:   %s\n", t.DueDate)
+	}
+	if t.Description != "" {
+		fmt.Fprintf(f.Writer, "  Desc:       %s\n", t.Description)
+	}
+	fmt.Fprintf(f.Writer, "  Created:    %s\n", t.CreatedOn.Format("2006-01-02"))
+	return nil
+}
+
+// formatEntryDetail outputs a single time entry in human-readable detail format
+func (f *Formatter) formatEntryDetail(e *api.TimeEntry) error {
+	fmt.Fprintf(f.Writer, "Time Entry: #%d\n", e.ID)
+	if e.Project != nil {
+		fmt.Fprintf(f.Writer, "  Project:     %s\n", e.Project.Name)
+	}
+	if e.Task != nil {
+		fmt.Fprintf(f.Writer, "  Task:        %s\n", e.Task.Name)
+	}
+	if e.Description != "" {
+		fmt.Fprintf(f.Writer, "  Description: %s\n", e.Description)
+	}
+	fmt.Fprintf(f.Writer, "  Start:       %s\n", e.StartTime.Format("2006-01-02 15:04:05"))
+	if !e.EndTime.IsZero() {
+		fmt.Fprintf(f.Writer, "  End:         %s\n", e.EndTime.Format("2006-01-02 15:04:05"))
+	}
+	if e.Duration > 0 {
+		fmt.Fprintf(f.Writer, "  Duration:    %s\n", formatDuration(e.Duration))
+	}
+	return nil
 }
 
 // FormatTimeEntries outputs time entries in the specified format
@@ -287,16 +478,21 @@ func (f *Formatter) formatEntriesCSV(entries []api.TimeEntry) error {
 	for _, e := range entries {
 		projectName := ""
 		taskName := ""
+		projectID := 0
 		if e.Project != nil {
 			projectName = e.Project.Name
+			projectID = e.Project.ID
 		}
 		if e.Task != nil {
 			taskName = e.Task.Name
+			if projectID == 0 {
+				projectID = e.Task.ProjectID
+			}
 		}
 
 		w.Write([]string{
 			fmt.Sprintf("%d", e.ID),
-			fmt.Sprintf("%d", e.Task.ProjectID),
+			fmt.Sprintf("%d", projectID),
 			projectName,
 			fmt.Sprintf("%d", e.TaskID),
 			taskName,

@@ -58,6 +58,15 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
+// GetOutputFormat returns the configured output format for use in error handling
+func GetOutputFormat() string {
+	f := viper.GetString("format")
+	if f == "" {
+		return "table"
+	}
+	return f
+}
+
 func init() {
 	cobra.OnInitialize(initConfig)
 
@@ -65,10 +74,16 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ~/.config/paymo-cli/config.yaml)")
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "verbose output")
 	rootCmd.PersistentFlags().StringP("format", "f", "table", "output format: table, json, csv")
-	
+	rootCmd.PersistentFlags().BoolP("quiet", "q", false, "minimal output (IDs only for create/mutate commands)")
+
 	// Bind flags to viper
 	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 	viper.BindPFlag("format", rootCmd.PersistentFlags().Lookup("format"))
+	viper.BindPFlag("quiet", rootCmd.PersistentFlags().Lookup("quiet"))
+
+	// Let main.go handle error output (needed for JSON structured errors)
+	rootCmd.SilenceErrors = true
+	rootCmd.SilenceUsage = true
 
 	// Disable Cobra's default help command (we use our own)
 	rootCmd.SetHelpCommand(helpCmd)

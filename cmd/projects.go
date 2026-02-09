@@ -5,10 +5,8 @@ import (
 	"strconv"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	"github.com/ComputClaw/paymo-cli/internal/api"
-	"github.com/ComputClaw/paymo-cli/internal/output"
 )
 
 // projectsCmd represents the projects command
@@ -34,28 +32,27 @@ Examples:
 		if err != nil {
 			return err
 		}
-		
+
 		activeOnly, _ := cmd.Flags().GetBool("active")
 		allProjects, _ := cmd.Flags().GetBool("all")
 		clientFilter, _ := cmd.Flags().GetString("client")
-		
+
 		opts := &api.ProjectListOptions{
 			ActiveOnly: activeOnly && !allProjects,
 		}
-		
+
 		if clientFilter != "" {
 			if id, err := strconv.Atoi(clientFilter); err == nil {
 				opts.ClientID = id
 			}
 		}
-		
+
 		projects, err := client.GetProjects(opts)
 		if err != nil {
 			return fmt.Errorf("fetching projects: %w", err)
 		}
-		
-		format := viper.GetString("format")
-		formatter := output.NewFormatter(format)
+
+		formatter := newFormatter()
 		return formatter.FormatProjects(projects)
 	},
 }
@@ -75,35 +72,29 @@ Examples:
 		if err != nil {
 			return err
 		}
-		
+
 		name := args[0]
 		description, _ := cmd.Flags().GetString("description")
 		billable, _ := cmd.Flags().GetBool("billable")
 		clientID, _ := cmd.Flags().GetInt("client")
-		
+
 		req := &api.CreateProjectRequest{
 			Name:        name,
 			Description: description,
 			Billable:    billable,
 		}
-		
+
 		if clientID > 0 {
 			req.ClientID = &clientID
 		}
-		
+
 		project, err := client.CreateProject(req)
 		if err != nil {
 			return fmt.Errorf("creating project: %w", err)
 		}
-		
-		fmt.Printf("✅ Project created successfully\n")
-		fmt.Printf("   ID: %d\n", project.ID)
-		fmt.Printf("   Name: %s\n", project.Name)
-		if project.Code != "" {
-			fmt.Printf("   Code: %s\n", project.Code)
-		}
-		
-		return nil
+
+		formatter := newFormatter()
+		return formatter.FormatProject(project)
 	},
 }
 
@@ -122,51 +113,14 @@ Examples:
 		if err != nil {
 			return err
 		}
-		
-		projectArg := args[0]
-		
-		var project *api.Project
-		
-		// Try as ID first
-		if id, err := strconv.Atoi(projectArg); err == nil {
-			project, err = client.GetProject(id)
-			if err != nil {
-				return fmt.Errorf("project not found: %w", err)
-			}
-		} else {
-			// Try as name
-			project, err = client.GetProjectByName(projectArg)
-			if err != nil {
-				return fmt.Errorf("project not found: %w", err)
-			}
+
+		project, err := resolveProject(client, args[0])
+		if err != nil {
+			return err
 		}
-		
-		format := viper.GetString("format")
-		if format == "json" {
-			formatter := output.NewFormatter(format)
-			return formatter.FormatProjects([]api.Project{*project})
-		}
-		
-		// Pretty print for table format
-		fmt.Printf("📁 Project: %s\n", project.Name)
-		fmt.Printf("   ID: %d\n", project.ID)
-		if project.Code != "" {
-			fmt.Printf("   Code: %s\n", project.Code)
-		}
-		if project.Description != "" {
-			fmt.Printf("   Description: %s\n", project.Description)
-		}
-		fmt.Printf("   Status: %s\n", statusString(project.Active))
-		fmt.Printf("   Billable: %s\n", boolString(project.Billable))
-		if project.BudgetHours > 0 {
-			fmt.Printf("   Budget: %.1f hours\n", project.BudgetHours)
-		}
-		if project.PricePerHour > 0 {
-			fmt.Printf("   Rate: $%.2f/hour\n", project.PricePerHour)
-		}
-		fmt.Printf("   Created: %s\n", project.CreatedOn.Format("2006-01-02"))
-		
-		return nil
+
+		formatter := newFormatter()
+		return formatter.FormatProject(project)
 	},
 }
 
@@ -185,24 +139,14 @@ Examples:
 		if err != nil {
 			return err
 		}
-		
-		projectArg := args[0]
+
 		includeCompleted, _ := cmd.Flags().GetBool("all")
-		
-		var projectID int
-		
-		// Try as ID first
-		if id, err := strconv.Atoi(projectArg); err == nil {
-			projectID = id
-		} else {
-			// Try as name
-			project, err := client.GetProjectByName(projectArg)
-			if err != nil {
-				return fmt.Errorf("project not found: %w", err)
-			}
-			projectID = project.ID
+
+		projectID, err := resolveProjectID(client, args[0])
+		if err != nil {
+			return err
 		}
-		
+
 		tasks, err := client.GetTasks(&api.TaskListOptions{
 			ProjectID:        projectID,
 			IncludeCompleted: includeCompleted,
@@ -210,9 +154,8 @@ Examples:
 		if err != nil {
 			return fmt.Errorf("fetching tasks: %w", err)
 		}
-		
-		format := viper.GetString("format")
-		formatter := output.NewFormatter(format)
+
+		formatter := newFormatter()
 		return formatter.FormatTasks(tasks)
 	},
 }
@@ -227,52 +170,19 @@ var archiveProjectCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		
-		projectArg := args[0]
-		
-		var projectID int
-		var projectName string
-		
-		// Try as ID first
-		if id, err := strconv.Atoi(projectArg); err == nil {
-			project, err := client.GetProject(id)
-			if err != nil {
-				return fmt.Errorf("project not found: %w", err)
-			}
-			projectID = project.ID
-			projectName = project.Name
-		} else {
-			// Try as name
-			project, err := client.GetProjectByName(projectArg)
-			if err != nil {
-				return fmt.Errorf("project not found: %w", err)
-			}
-			projectID = project.ID
-			projectName = project.Name
+
+		project, err := resolveProject(client, args[0])
+		if err != nil {
+			return err
 		}
-		
-		if err := client.ArchiveProject(projectID); err != nil {
+
+		if err := client.ArchiveProject(project.ID); err != nil {
 			return fmt.Errorf("archiving project: %w", err)
 		}
-		
-		fmt.Printf("📦 Project '%s' has been archived.\n", projectName)
-		
-		return nil
+
+		formatter := newFormatter()
+		return formatter.FormatSuccess(fmt.Sprintf("Project '%s' has been archived.", project.Name), project.ID)
 	},
-}
-
-func statusString(active bool) string {
-	if active {
-		return "Active"
-	}
-	return "Inactive"
-}
-
-func boolString(b bool) string {
-	if b {
-		return "Yes"
-	}
-	return "No"
 }
 
 func init() {
