@@ -39,35 +39,18 @@ All binaries are available on the [releases page](https://github.com/mbundgaard/
 
 ## Getting started
 
-Authenticate with your Paymo API key (find it in Paymo under Settings > Integrations > API keys).
-
-**Interactive mode** (prompts for credentials):
+After installation, authenticate with a Paymo API key. Ask the user for their key (they can find it in Paymo under Settings > Integrations > API keys).
 
 ```bash
-paymo auth login
+paymo auth login --api-key <KEY>
 ```
 
-**Unattended mode** (pass the API key directly — use this in scripts and non-interactive shells):
+This validates the key, stores credentials, and syncs core data (user, clients, projects) into the local cache.
+
+Verify it worked:
 
 ```bash
-paymo auth login --api-key YOUR_API_KEY
-```
-
-> **For AI agents:** Do not use interactive mode — it requires a terminal. Instead, ask the user for their Paymo API key, then run `paymo auth login --api-key <key>`.
-
-After login, core data is automatically synced into the local cache.
-
-Once configured, you're ready to go:
-
-```bash
-# Log a time entry
-paymo time log --project "My Project" --task "Development" --date today --duration 2h -d "Feature work"
-
-# View today's entries
-paymo time list --date today
-
-# Start a live timer
-paymo time start "My Project" "Development"
+paymo auth status
 ```
 
 ## Features
