@@ -7,7 +7,7 @@ Write-Host "Installing paymo-cli to $installDir..."
 
 New-Item -ItemType Directory -Path $installDir -Force | Out-Null
 Invoke-WebRequest -Uri $url -OutFile $zipPath
-tar -xf $zipPath -C $installDir
+Expand-Archive -Path $zipPath -DestinationPath $installDir -Force
 Remove-Item $zipPath -ErrorAction SilentlyContinue
 
 # Add to PATH if not already there
@@ -18,6 +18,11 @@ if ($userPath -notlike "*$installDir*") {
     Write-Host "Added $installDir to PATH."
 }
 
-$version = & (Join-Path $installDir "paymo.exe") --version 2>&1
-Write-Host "$version installed successfully."
+$exe = Join-Path $installDir "paymo.exe"
+if (Test-Path $exe) {
+    $version = & $exe --version 2>&1
+    Write-Host "$version installed successfully."
+} else {
+    Write-Host "paymo-cli installed to $installDir."
+}
 Write-Host "Run 'paymo auth login' to get started."
