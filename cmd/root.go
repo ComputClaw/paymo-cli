@@ -18,6 +18,13 @@ var (
 func SetVersionInfo(v, commit, date string) {
 	version = v
 	rootCmd.Version = v
+	rootCmd.Long = fmt.Sprintf(`paymo %s — a command-line client for Paymo that allows you to:
+- Track time with start/stop commands
+- Manage projects and tasks
+- Generate reports and timesheets
+- Integrate with your development workflow
+
+Check for updates: https://github.com/mbundgaard/paymo-cli/releases`, v)
 	rootCmd.SetVersionTemplate(`{{.Name}} version {{.Version}}
 `)
 }
@@ -26,13 +33,13 @@ func SetVersionInfo(v, commit, date string) {
 var rootCmd = &cobra.Command{
 	Use:   "paymo",
 	Short: "A CLI client for Paymo time tracking and project management",
-	Long: `paymo is a command-line client for Paymo that allows you to:
+	Long: `paymo dev — a command-line client for Paymo that allows you to:
 - Track time with start/stop commands
 - Manage projects and tasks
 - Generate reports and timesheets
 - Integrate with your development workflow
 
-Built with ❤️  by ComputClaw`,
+Check for updates: https://github.com/mbundgaard/paymo-cli/releases`,
 	Version: version,
 }
 
