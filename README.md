@@ -21,8 +21,10 @@ Download the latest binary for your platform, extract it, and add it to your PAT
 **Windows (PowerShell):**
 
 ```powershell
+New-Item -ItemType Directory -Path "$env:LOCALAPPDATA\paymo-cli" -Force | Out-Null
 Invoke-WebRequest -Uri "https://github.com/mbundgaard/paymo-cli/releases/latest/download/paymo-cli_windows_amd64.zip" -OutFile "$env:TEMP\paymo.zip"
-Expand-Archive "$env:TEMP\paymo.zip" -DestinationPath "$env:LOCALAPPDATA\paymo-cli" -Force
+tar -xf "$env:TEMP\paymo.zip" -C "$env:LOCALAPPDATA\paymo-cli"
+Remove-Item "$env:TEMP\paymo.zip" -ErrorAction SilentlyContinue
 # Add to PATH (run once)
 [Environment]::SetEnvironmentVariable("Path", $env:Path + ";$env:LOCALAPPDATA\paymo-cli", "User")
 ```
