@@ -39,18 +39,23 @@ All binaries are available on the [releases page](https://github.com/mbundgaard/
 
 ## Getting started
 
-On first run, paymo-cli will walk you through setup:
+Authenticate with your Paymo API key (find it in Paymo under Settings > Integrations > API keys).
 
-1. **Configure** — You'll be prompted for your Paymo API key (find it in Paymo Settings > API Keys)
-2. **Sync** — The CLI automatically downloads users, clients, and projects to the local cache so subsequent commands are fast and work offline
+**Interactive mode** (prompts for credentials):
 
 ```bash
-# First run — prompts for API key and syncs your data
 paymo auth login
+```
 
-# Or provide the key directly
+**Unattended mode** (pass the API key directly — use this in scripts and non-interactive shells):
+
+```bash
 paymo auth login --api-key YOUR_API_KEY
 ```
+
+> **For AI agents:** Do not use interactive mode — it requires a terminal. Instead, ask the user for their Paymo API key, then run `paymo auth login --api-key <key>`.
+
+After login, core data is automatically synced into the local cache.
 
 Once configured, you're ready to go:
 
