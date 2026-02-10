@@ -28,4 +28,4 @@ jobs:
         run: go test -race -cover ./...
 
       - name: Build
-        run: go build -o paymo .
+        run: go build -o paymo ./cmd/paymo
