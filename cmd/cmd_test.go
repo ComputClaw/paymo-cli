@@ -188,6 +188,7 @@ func runCommand(mock api.PaymoAPI, args ...string) error {
 	resetCommandFlags(createTaskCmd, "project")
 	resetCommandFlags(listTasksCmd, "project")
 	resetCommandFlags(logCmd, "date", "project")
+	resetCommandFlags(editEntryCmd, "description", "duration", "task")
 
 	rootCmd.SetArgs(args)
 	viper.Set("format", "json")
@@ -435,6 +436,43 @@ func TestTimeStatus(t *testing.T) {
 	err := runCommand(newMockAPI(), "time", "status")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestTimeShow(t *testing.T) {
+	err := runCommand(newMockAPI(), "time", "show", "100")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestTimeShow_NotFound(t *testing.T) {
+	err := runCommand(newMockAPI(), "time", "show", "999")
+	if err == nil {
+		t.Fatal("expected error for non-existent entry")
+	}
+}
+
+func TestTimeEdit(t *testing.T) {
+	err := runCommand(newMockAPI(), "time", "edit", "100", "--description", "Updated", "--duration", "2h")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestTimeDelete(t *testing.T) {
+	err := runCommand(newMockAPI(), "time", "delete", "100")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestTimeDelete_Error(t *testing.T) {
+	mock := newMockAPI()
+	mock.deleteErr = errors.New("API error")
+	err := runCommand(mock, "time", "delete", "100")
+	if err == nil {
+		t.Fatal("expected error from delete")
 	}
 }
 

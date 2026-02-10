@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -326,17 +327,146 @@ Examples:
 	},
 }
 
+// showEntryCmd shows a single time entry by ID
+var showEntryCmd = &cobra.Command{
+	Use:   "show <id>",
+	Short: "Show a time entry",
+	Long: `Display details of a specific time entry by ID.
+
+Examples:
+  paymo time show 12345`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := getAPIClient()
+		if err != nil {
+			return err
+		}
+
+		id, err := strconv.Atoi(args[0])
+		if err != nil {
+			return fmt.Errorf("invalid entry ID: %s", args[0])
+		}
+
+		entry, err := client.GetEntry(id)
+		if err != nil {
+			return fmt.Errorf("fetching entry: %w", err)
+		}
+
+		formatter := newFormatter()
+		return formatter.FormatTimeEntry(entry)
+	},
+}
+
+// editEntryCmd edits a time entry by ID
+var editEntryCmd = &cobra.Command{
+	Use:   "edit <id>",
+	Short: "Edit a time entry",
+	Long: `Update a time entry's description, duration, or task.
+
+Examples:
+  paymo time edit 12345 --description "Updated notes"
+  paymo time edit 12345 --duration 2h30m
+  paymo time edit 12345 --task 456`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := getAPIClient()
+		if err != nil {
+			return err
+		}
+
+		id, err := strconv.Atoi(args[0])
+		if err != nil {
+			return fmt.Errorf("invalid entry ID: %s", args[0])
+		}
+
+		req := &api.UpdateTimeEntryRequest{}
+		changed := false
+
+		if cmd.Flags().Changed("description") {
+			desc, _ := cmd.Flags().GetString("description")
+			req.Description = &desc
+			changed = true
+		}
+
+		if cmd.Flags().Changed("duration") {
+			durStr, _ := cmd.Flags().GetString("duration")
+			dur, err := time.ParseDuration(durStr)
+			if err != nil {
+				return fmt.Errorf("invalid duration: %s (use Go duration format, e.g. 2h30m)", durStr)
+			}
+			secs := int(dur.Seconds())
+			req.Duration = &secs
+			changed = true
+		}
+
+		if cmd.Flags().Changed("task") {
+			taskID, _ := cmd.Flags().GetInt("task")
+			req.TaskID = &taskID
+			changed = true
+		}
+
+		if !changed {
+			return fmt.Errorf("no flags specified — use --description, --duration, or --task")
+		}
+
+		entry, err := client.UpdateEntry(id, req)
+		if err != nil {
+			return fmt.Errorf("updating entry: %w", err)
+		}
+
+		formatter := newFormatter()
+		return formatter.FormatTimeEntry(entry)
+	},
+}
+
+// deleteEntryCmd deletes a time entry by ID
+var deleteEntryCmd = &cobra.Command{
+	Use:   "delete <id>",
+	Short: "Delete a time entry",
+	Long: `Delete a specific time entry by ID.
+
+Examples:
+  paymo time delete 12345`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := getAPIClient()
+		if err != nil {
+			return err
+		}
+
+		id, err := strconv.Atoi(args[0])
+		if err != nil {
+			return fmt.Errorf("invalid entry ID: %s", args[0])
+		}
+
+		if err := client.DeleteEntry(id); err != nil {
+			return fmt.Errorf("deleting entry: %w", err)
+		}
+
+		formatter := newFormatter()
+		return formatter.FormatSuccess("Time entry deleted.", id)
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(timeCmd)
 	timeCmd.AddCommand(startCmd)
 	timeCmd.AddCommand(stopCmd)
 	timeCmd.AddCommand(statusCmd)
 	timeCmd.AddCommand(logCmd)
+	timeCmd.AddCommand(showEntryCmd)
+	timeCmd.AddCommand(editEntryCmd)
+	timeCmd.AddCommand(deleteEntryCmd)
 
 	// Flags for start command
 	startCmd.Flags().StringP("project", "p", "", "project name or ID")
 	startCmd.Flags().StringP("task", "t", "", "task name or ID")
 	startCmd.Flags().StringP("description", "d", "", "time entry description")
+
+	// Flags for edit command
+	editEntryCmd.Flags().StringP("description", "d", "", "update description")
+	editEntryCmd.Flags().String("duration", "", "update duration (e.g. 2h30m)")
+	editEntryCmd.Flags().IntP("task", "t", 0, "reassign to task ID")
 
 	// Flags for log command
 	logCmd.Flags().StringP("date", "", "today", "date filter (today, yesterday, this-week, last-week, YYYY-MM-DD)")

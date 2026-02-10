@@ -70,6 +70,9 @@ paymo time start <project> <task> [-d "description"]
 paymo time status
 paymo time stop
 paymo time log [--date today] [--project NAME]
+paymo time show <id>
+paymo time edit <id> [--description "..."] [--duration 2h] [--task 456]
+paymo time delete <id>
 
 # Sync & cache
 paymo sync                          # Sync core data
