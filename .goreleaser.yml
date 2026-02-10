@@ -25,6 +25,10 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
+release:
+  header: |
+    AI agent instructions: https://mbundgaard.github.io/paymo-cli/
+
 changelog:
   sort: asc
   filters:
