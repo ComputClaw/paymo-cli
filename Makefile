@@ -4,7 +4,7 @@ BINARY := paymo
 PKG    := ./...
 
 build:
-	go build -o $(BINARY) .
+	go build -o $(BINARY) ./cmd/paymo
 
 test:
 	go test -race -cover $(PKG)
@@ -20,7 +20,7 @@ lint: vet
 	golangci-lint run $(PKG)
 
 install:
-	go install .
+	go install ./cmd/paymo
 
 clean:
 	rm -f $(BINARY)

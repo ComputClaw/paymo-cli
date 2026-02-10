@@ -16,7 +16,7 @@ Grab the latest release for your platform from the [releases page](https://githu
 ### From source
 
 ```bash
-go install github.com/ComputClaw/paymo-cli@latest
+go install github.com/ComputClaw/paymo-cli/cmd/paymo@latest
 ```
 
 ## Getting started

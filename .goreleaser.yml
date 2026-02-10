@@ -1,7 +1,8 @@
 version: 2
 
 builds:
-  - binary: paymo
+  - main: ./cmd/paymo
+    binary: paymo
     env:
       - CGO_ENABLED=0
     goos:

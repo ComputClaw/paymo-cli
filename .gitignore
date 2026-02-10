@@ -1,6 +1,6 @@
 # Binaries
-paymo
-paymo.exe
+/paymo
+/paymo.exe
 *.exe
 *.dll
 *.so

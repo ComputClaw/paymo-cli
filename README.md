@@ -19,10 +19,15 @@ A powerful command-line client for [Paymo](https://www.paymoapp.com/) time track
 ### From Source
 
 ```bash
+go install github.com/ComputClaw/paymo-cli/cmd/paymo@latest
+```
+
+Or build manually:
+
+```bash
 git clone https://github.com/ComputClaw/paymo-cli.git
 cd paymo-cli
-go build -o paymo .
-sudo mv paymo /usr/local/bin/  # Optional: install globally
+go build -o paymo ./cmd/paymo
 ```
 
 ### Homebrew (Coming Soon)
