@@ -52,16 +52,17 @@ func TestCredentials_SaveAndLoad(t *testing.T) {
 		t.Errorf("data mismatch: expected %s, got %s", string(data), string(readData))
 	}
 
-	// Verify file permissions
-	info, err := os.Stat(testPath)
-	if err != nil {
-		t.Fatalf("failed to stat file: %v", err)
-	}
+	// Verify file permissions (only on Unix; Windows doesn't support Unix-style perms)
+	if os.PathSeparator == '/' {
+		info, err := os.Stat(testPath)
+		if err != nil {
+			t.Fatalf("failed to stat file: %v", err)
+		}
 
-	// Check that file is readable/writable by owner only
-	perm := info.Mode().Perm()
-	if perm != 0600 {
-		t.Errorf("expected permissions 0600, got %o", perm)
+		perm := info.Mode().Perm()
+		if perm != 0600 {
+			t.Errorf("expected permissions 0600, got %o", perm)
+		}
 	}
 
 	_ = creds // Used to set up the test

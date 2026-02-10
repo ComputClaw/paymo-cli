@@ -11,8 +11,16 @@ import (
 
 var (
 	cfgFile string
-	version = "0.1.0"
+	version = "dev"
 )
+
+// SetVersionInfo sets version information from build-time ldflags.
+func SetVersionInfo(v, commit, date string) {
+	version = v
+	rootCmd.Version = v
+	rootCmd.SetVersionTemplate(`{{.Name}} version {{.Version}}
+`)
+}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
