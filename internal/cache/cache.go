@@ -17,6 +17,7 @@ var ErrCacheMiss = errors.New("cache miss")
 // Default TTLs per resource type.
 var DefaultTTL = map[string]time.Duration{
 	"me":              24 * time.Hour,
+	"clients":         1 * time.Hour,
 	"projects":        1 * time.Hour,
 	"project":         1 * time.Hour,
 	"project_by_name": 1 * time.Hour,

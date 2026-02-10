@@ -40,6 +40,28 @@ func (c *CachedClient) ValidateAuth() error {
 	return c.inner.ValidateAuth()
 }
 
+// --- Clients ---
+
+func (c *CachedClient) GetClients() ([]api.PaymoClient, error) {
+	key := "all"
+	var cached []api.PaymoClient
+	if err := c.store.Get("clients", key, &cached); err == nil {
+		return cached, nil
+	}
+	clients, err := c.inner.GetClients()
+	if err != nil {
+		if isNetworkError(err) {
+			var stale []api.PaymoClient
+			if c.store.GetStale("clients", key, &stale) == nil {
+				return stale, nil
+			}
+		}
+		return nil, err
+	}
+	c.store.Set("clients", key, clients)
+	return clients, nil
+}
+
 // --- Projects ---
 
 func (c *CachedClient) GetProjects(opts *api.ProjectListOptions) ([]api.Project, error) {

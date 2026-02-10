@@ -36,6 +36,15 @@ func (m *mockAPI) GetMe() (*api.User, error) {
 
 func (m *mockAPI) ValidateAuth() error { return nil }
 
+func (m *mockAPI) GetClients() ([]api.PaymoClient, error) {
+	if m.networkErr {
+		return nil, errors.New("dial tcp: connection refused")
+	}
+	return []api.PaymoClient{
+		{ID: 1, Name: "Client One", Active: true},
+	}, nil
+}
+
 func (m *mockAPI) GetProjects(opts *api.ProjectListOptions) ([]api.Project, error) {
 	m.getProjectsCalls++
 	if m.networkErr {

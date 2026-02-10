@@ -7,6 +7,9 @@ type PaymoAPI interface {
 	GetMe() (*User, error)
 	ValidateAuth() error
 
+	// Clients
+	GetClients() ([]PaymoClient, error)
+
 	// Projects
 	GetProjects(opts *ProjectListOptions) ([]Project, error)
 	GetProject(id int) (*Project, error)

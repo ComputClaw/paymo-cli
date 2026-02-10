@@ -99,6 +99,9 @@ Interactive login:
 			return fmt.Errorf("saving credentials: %v", err)
 		}
 
+		// Sync core data into the cache (non-fatal on error)
+		syncAfterLogin(formatter, user)
+
 		return formatter.FormatSuccess(
 			fmt.Sprintf("Successfully authenticated as %s (%s)", user.Name, user.Email),
 			user.ID,

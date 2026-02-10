@@ -48,8 +48,9 @@ func newMockAPI() *mockPaymoAPI {
 	}
 }
 
-func (m *mockPaymoAPI) GetMe() (*api.User, error) { return m.user, nil }
-func (m *mockPaymoAPI) ValidateAuth() error        { return nil }
+func (m *mockPaymoAPI) GetMe() (*api.User, error)                { return m.user, nil }
+func (m *mockPaymoAPI) ValidateAuth() error                      { return nil }
+func (m *mockPaymoAPI) GetClients() ([]api.PaymoClient, error)   { return nil, nil }
 
 func (m *mockPaymoAPI) GetProjects(opts *api.ProjectListOptions) ([]api.Project, error) {
 	return m.projects, nil
