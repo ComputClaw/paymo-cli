@@ -229,6 +229,18 @@ func (f *Formatter) FormatTimeEntries(entries []api.TimeEntry) error {
 	}
 }
 
+// FormatClients outputs clients in the specified format
+func (f *Formatter) FormatClients(clients []api.PaymoClient) error {
+	switch f.Format {
+	case "json":
+		return f.formatJSON(clients)
+	case "csv":
+		return f.formatClientsCSV(clients)
+	default:
+		return f.formatClientsTable(clients)
+	}
+}
+
 // FormatProjects outputs projects in the specified format
 func (f *Formatter) FormatProjects(projects []api.Project) error {
 	switch f.Format {
@@ -539,6 +551,80 @@ func (f *Formatter) formatTasksCSV(tasks []api.Task) error {
 			fmt.Sprintf("%t", t.Complete),
 			fmt.Sprintf("%t", t.Billable),
 			t.DueDate,
+		})
+	}
+
+	return nil
+}
+
+func (f *Formatter) formatClientsTable(clients []api.PaymoClient) error {
+	if len(clients) == 0 {
+		fmt.Fprintln(f.Writer, "No clients found.")
+		return nil
+	}
+
+	idWidth := 8
+	nameWidth := 30
+	emailWidth := 25
+	activeWidth := 8
+
+	fmt.Fprintf(f.Writer, "┌%s┬%s┬%s┬%s┐\n",
+		strings.Repeat("─", idWidth+2),
+		strings.Repeat("─", nameWidth+2),
+		strings.Repeat("─", emailWidth+2),
+		strings.Repeat("─", activeWidth+2))
+
+	fmt.Fprintf(f.Writer, "│ %-*s │ %-*s │ %-*s │ %-*s │\n",
+		idWidth, "ID",
+		nameWidth, "Name",
+		emailWidth, "Email",
+		activeWidth, "Active")
+
+	fmt.Fprintf(f.Writer, "├%s┼%s┼%s┼%s┤\n",
+		strings.Repeat("─", idWidth+2),
+		strings.Repeat("─", nameWidth+2),
+		strings.Repeat("─", emailWidth+2),
+		strings.Repeat("─", activeWidth+2))
+
+	for _, c := range clients {
+		name := truncate(c.Name, nameWidth)
+		email := truncate(c.Email, emailWidth)
+		active := "No"
+		if c.Active {
+			active = "Yes"
+		}
+		fmt.Fprintf(f.Writer, "│ %-*d │ %-*s │ %-*s │ %-*s │\n",
+			idWidth, c.ID,
+			nameWidth, name,
+			emailWidth, email,
+			activeWidth, active)
+	}
+
+	fmt.Fprintf(f.Writer, "└%s┴%s┴%s┴%s┘\n",
+		strings.Repeat("─", idWidth+2),
+		strings.Repeat("─", nameWidth+2),
+		strings.Repeat("─", emailWidth+2),
+		strings.Repeat("─", activeWidth+2))
+
+	fmt.Fprintf(f.Writer, "%d client(s)\n", len(clients))
+	return nil
+}
+
+func (f *Formatter) formatClientsCSV(clients []api.PaymoClient) error {
+	w := csv.NewWriter(f.Writer)
+	defer w.Flush()
+
+	w.Write([]string{"id", "name", "email", "phone", "city", "country", "active"})
+
+	for _, c := range clients {
+		w.Write([]string{
+			fmt.Sprintf("%d", c.ID),
+			c.Name,
+			c.Email,
+			c.Phone,
+			c.City,
+			c.Country,
+			fmt.Sprintf("%t", c.Active),
 		})
 	}
 

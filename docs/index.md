@@ -54,6 +54,9 @@ Run `paymo --help` to see all available commands. Use `paymo <command> --help` f
 ## Quick reference
 
 ```bash
+# Clients
+paymo clients list
+
 # Projects
 paymo projects list
 paymo projects show <name-or-id>
