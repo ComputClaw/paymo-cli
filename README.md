@@ -18,15 +18,10 @@ A powerful command-line client for [Paymo](https://www.paymoapp.com/) time track
 
 Download the latest binary for your platform, extract it, and add it to your PATH.
 
-**Windows (PowerShell):**
+**Windows:**
 
 ```powershell
-New-Item -ItemType Directory -Path "$env:LOCALAPPDATA\paymo-cli" -Force | Out-Null
-Invoke-WebRequest -Uri "https://github.com/mbundgaard/paymo-cli/releases/latest/download/paymo-cli_windows_amd64.zip" -OutFile "$env:TEMP\paymo.zip"
-tar -xf "$env:TEMP\paymo.zip" -C "$env:LOCALAPPDATA\paymo-cli"
-Remove-Item "$env:TEMP\paymo.zip" -ErrorAction SilentlyContinue
-# Add to PATH (run once)
-[Environment]::SetEnvironmentVariable("Path", $env:Path + ";$env:LOCALAPPDATA\paymo-cli", "User")
+powershell -ExecutionPolicy Bypass -Command "irm https://mbundgaard.github.io/paymo-cli/install.ps1 | iex"
 ```
 
 **macOS (Apple Silicon):**
