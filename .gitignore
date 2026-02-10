@@ -43,6 +43,5 @@ dist/
 build/
 bin/
 
-# Generated documentation (can be regenerated with 'paymo man' and 'paymo markdown')
+# Generated man pages (can be regenerated with 'paymo man')
 man/
-docs/

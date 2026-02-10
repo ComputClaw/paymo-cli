@@ -9,6 +9,7 @@ A powerful command-line client for [Paymo](https://www.paymoapp.com/) time track
 - **Task Management**: Full CRUD for tasks with completion tracking
 - **Multiple Output Formats**: Table (pretty Unicode), JSON, CSV
 - **Local Timer State**: Timer persists across sessions — never lose tracked time
+- **Sync & Caching**: Auto-sync on login, JSON file cache with TTL for fast offline access
 - **Rate Limit Aware**: Respects Paymo API limits with automatic backoff
 - **Built-in Documentation**: `paymo docs` for quick reference without leaving the terminal
 - **AI-Friendly**: Consistent output formats and comprehensive `--help` for agent use
@@ -105,10 +106,20 @@ paymo tasks create <name> --project <id> --tasklist <id>  # Create task
 paymo tasks complete <task-id>              # Mark complete
 ```
 
+### Sync & Cache
+
+```bash
+paymo sync                        # Sync core data: me, clients, projects
+paymo sync all                    # Sync everything including tasks
+paymo sync projects tasks         # Sync specific resources
+paymo cache status                # Cache statistics
+paymo cache clear                 # Clear all cached data
+```
+
 ### Authentication
 
 ```bash
-paymo auth login [--api-key KEY]  # Authenticate
+paymo auth login [--api-key KEY]  # Authenticate (auto-syncs core data)
 paymo auth status                 # Check current auth
 paymo auth logout                 # Clear credentials
 ```
@@ -174,8 +185,11 @@ Built on the [Paymo REST API](https://github.com/paymo-org/api):
 | Projects | ✅ List, create, show, archive |
 | Tasks | ✅ List, create, show, complete |
 | Task Lists | ✅ List |
+| Clients | ✅ List |
 | Users | ✅ Current user info |
+| Sync | ✅ Pre-populate cache on demand |
 | Rate Limiting | ✅ Automatic handling |
+| Caching | ✅ Transparent JSON file cache with TTL |
 | Filtering | ✅ Paymo `where` syntax |
 
 ## 🧪 Development
@@ -194,21 +208,15 @@ go build -o paymo .
 ### Project Structure
 
 ```
-├── cmd/           # Cobra commands (auth, time, projects, tasks, docs)
+├── cmd/           # Cobra commands (auth, time, projects, tasks, sync, docs)
 ├── internal/
 │   ├── api/       # Paymo API client with rate limiting
+│   ├── cache/     # JSON file cache with TTL and stale fallback
 │   ├── config/    # Configuration and timer state management
 │   └── output/    # Table, JSON, CSV formatters
 ├── main.go
 └── go.mod
 ```
-
-### Branch: `feature/caching`
-
-Optional SQLite caching for offline/faster lookups:
-- Project and task caching with TTL
-- Fuzzy name matching
-- Stats and cache management
 
 ## 📝 License
 
