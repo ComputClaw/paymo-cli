@@ -16,25 +16,36 @@ A powerful command-line client for [Paymo](https://www.paymoapp.com/) time track
 
 ## 📦 Installation
 
-Download the latest binary for your platform from the [releases page](https://github.com/mbundgaard/paymo-cli/releases), extract it, and add it to your PATH.
+Download the latest binary for your platform, extract it, and add it to your PATH.
 
 **Windows (PowerShell):**
 
 ```powershell
-$v = (Invoke-RestMethod "https://api.github.com/repos/mbundgaard/paymo-cli/releases/latest").tag_name.TrimStart("v")
-Invoke-WebRequest -Uri "https://github.com/mbundgaard/paymo-cli/releases/latest/download/paymo-cli_${v}_windows_amd64.zip" -OutFile "$env:TEMP\paymo.zip"
+Invoke-WebRequest -Uri "https://github.com/mbundgaard/paymo-cli/releases/latest/download/paymo-cli_windows_amd64.zip" -OutFile "$env:TEMP\paymo.zip"
 Expand-Archive "$env:TEMP\paymo.zip" -DestinationPath "$env:LOCALAPPDATA\paymo-cli" -Force
 # Add to PATH (run once)
 [Environment]::SetEnvironmentVariable("Path", $env:Path + ";$env:LOCALAPPDATA\paymo-cli", "User")
 ```
 
-**macOS / Linux:**
+**macOS (Apple Silicon):**
 
 ```bash
-VERSION=$(curl -s https://api.github.com/repos/mbundgaard/paymo-cli/releases/latest | grep '"tag_name"' | cut -d'"' -f4 | tr -d v)
-# macOS Apple Silicon: darwin_arm64 | macOS Intel: darwin_amd64 | Linux: linux_amd64
-curl -sL "https://github.com/mbundgaard/paymo-cli/releases/latest/download/paymo-cli_${VERSION}_darwin_arm64.tar.gz" | tar xz -C /usr/local/bin paymo
+curl -sL https://github.com/mbundgaard/paymo-cli/releases/latest/download/paymo-cli_darwin_arm64.tar.gz | tar xz -C /usr/local/bin paymo
 ```
+
+**macOS (Intel):**
+
+```bash
+curl -sL https://github.com/mbundgaard/paymo-cli/releases/latest/download/paymo-cli_darwin_amd64.tar.gz | tar xz -C /usr/local/bin paymo
+```
+
+**Linux:**
+
+```bash
+curl -sL https://github.com/mbundgaard/paymo-cli/releases/latest/download/paymo-cli_linux_amd64.tar.gz | tar xz -C /usr/local/bin paymo
+```
+
+All binaries are available on the [releases page](https://github.com/mbundgaard/paymo-cli/releases).
 
 ## 🔧 Quick Start
 
