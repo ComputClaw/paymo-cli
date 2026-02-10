@@ -16,29 +16,25 @@ A powerful command-line client for [Paymo](https://www.paymoapp.com/) time track
 
 ## 📦 Installation
 
-### From Source
+Download the latest binary for your platform from the [releases page](https://github.com/mbundgaard/paymo-cli/releases), extract it, and add it to your PATH.
 
-```bash
-go install github.com/ComputClaw/paymo-cli/cmd/paymo@latest
+**Windows (PowerShell):**
+
+```powershell
+$v = (Invoke-RestMethod "https://api.github.com/repos/mbundgaard/paymo-cli/releases/latest").tag_name.TrimStart("v")
+Invoke-WebRequest -Uri "https://github.com/mbundgaard/paymo-cli/releases/latest/download/paymo-cli_${v}_windows_amd64.zip" -OutFile "$env:TEMP\paymo.zip"
+Expand-Archive "$env:TEMP\paymo.zip" -DestinationPath "$env:LOCALAPPDATA\paymo-cli" -Force
+# Add to PATH (run once)
+[Environment]::SetEnvironmentVariable("Path", $env:Path + ";$env:LOCALAPPDATA\paymo-cli", "User")
 ```
 
-Or build manually:
+**macOS / Linux:**
 
 ```bash
-git clone https://github.com/ComputClaw/paymo-cli.git
-cd paymo-cli
-go build -o paymo ./cmd/paymo
+VERSION=$(curl -s https://api.github.com/repos/mbundgaard/paymo-cli/releases/latest | grep '"tag_name"' | cut -d'"' -f4 | tr -d v)
+# macOS Apple Silicon: darwin_arm64 | macOS Intel: darwin_amd64 | Linux: linux_amd64
+curl -sL "https://github.com/mbundgaard/paymo-cli/releases/latest/download/paymo-cli_${VERSION}_darwin_arm64.tar.gz" | tar xz -C /usr/local/bin paymo
 ```
-
-### Homebrew (Coming Soon)
-
-```bash
-brew install computclaw/tap/paymo-cli
-```
-
-### Binary Releases (Coming Soon)
-
-Download pre-built binaries from the [releases page](https://github.com/ComputClaw/paymo-cli/releases).
 
 ## 🔧 Quick Start
 
